@@ -3,9 +3,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using NuGet.Versioning;
 using SixModLoader.Launcher.Doorstop;
 
 namespace SixModLoader.Launcher
@@ -13,24 +15,16 @@ namespace SixModLoader.Launcher
     internal static class Program
     {
         public const string SixModLoaderPath = "SixModLoader/bin/SixModLoader.dll";
+
         public static HttpClient HttpClient { get; } = new HttpClient();
+        public static SemanticVersion Version { get; } = SemanticVersion.Parse(Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion);
 
         public static async Task Main(string[] args)
         {
-            Console.WriteLine($"SixModLoader.Launcher {Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion}");
+            HttpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("SixModLoader.Launcher", Version.ToString()));
+            Console.WriteLine($"SixModLoader.Launcher {Version}");
 
-            if (!File.Exists(SixModLoaderPath))
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"{SixModLoaderPath} not found!");
-                Console.ResetColor();
-                return;
-            }
-            else
-            {
-                var assemblyInfo = new AssemblyInfo(SixModLoaderPath);
-                Console.WriteLine("SixModLoader " + assemblyInfo.Version);
-            }
+            await new AutoUpdate().UpdateAsync();
 
             string defaultProcess;
             IDoorstop doorstop;
@@ -51,6 +45,8 @@ namespace SixModLoader.Launcher
             }
 
             await doorstop.DownloadAsync();
+            
+            Console.WriteLine();
 
             var file = (File.Exists("jumploader.txt") ? File.ReadAllText("jumploader.txt") : defaultProcess + " {args}")
                 .Replace("{args}", string.Join(" ", args))

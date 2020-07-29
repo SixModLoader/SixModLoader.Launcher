@@ -25,8 +25,7 @@ jobs:
         run: |
           dotnet publish -c Release -f netcoreapp3.1 -r win-x64
           dotnet publish -c Release -f netcoreapp3.1 -r linux-x64
-          dotnet publish -c Release -f net472 -r win-x64
-          dotnet publish -c Release -f net472 -r linux-x64
+          dotnet build -c Release -f net472
           
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v2

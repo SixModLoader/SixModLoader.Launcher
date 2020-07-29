@@ -1,29 +1,43 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFrameworks>net472;netcoreapp3.1</TargetFrameworks>
-    <OutputType>Exe</OutputType>
-    <LangVersion>latest</LangVersion>
+    <PropertyGroup>
+        <TargetFrameworks>netcoreapp3.1;net472</TargetFrameworks>
+        <OutputType>Exe</OutputType>
+        <LangVersion>latest</LangVersion>
 
-    <Description>Installs, updates and launches SixModLoader (with Doorstop)</Description>
-    <Version>0.2.0</Version>
-    <Authors>SixModLoader</Authors>
-    <ApplicationIcon>Assets/sixmodloader_logo.ico</ApplicationIcon>
+        <Description>Installs, updates and launches SixModLoader (with Doorstop)</Description>
+        <Version>0.2.0</Version>
+        <Authors>SixModLoader</Authors>
+        <ApplicationIcon>Assets/sixmodloader_logo.ico</ApplicationIcon>
 
-    <RepositoryUrl>https://github.com/SixModLoader/SixModLoader</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://sixmodloader.github.io/</PackageProjectUrl>
-    <PackageTags>SixModLoader SCPSL</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-  </PropertyGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="System.IO.Compression" Version="4.3.0" />
-    <PackageReference Include="System.Net.Http" Version="4.3.4" />
-    <PackageReference Include="System.Reflection.Metadata" Version="1.8.1" />
-  </ItemGroup>
+        <RepositoryUrl>https://github.com/SixModLoader/SixModLoader</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageProjectUrl>https://sixmodloader.github.io/</PackageProjectUrl>
+        <PackageTags>SixModLoader SCPSL</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)' == 'Release|netcoreapp3.1'">
-    <SelfContained>false</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-  </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Newtonsoft.Json" Version="12.0.3"/>
+        <PackageReference Include="NuGet.Versioning" Version="5.6.0"/>
+        <PackageReference Include="System.IO.Compression" Version="4.3.0"/>
+        <PackageReference Include="System.Net.Http" Version="4.3.4"/>
+        <PackageReference Include="System.Reflection.Metadata" Version="1.8.1"/>
+    </ItemGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)' == 'Release|netcoreapp3.1'">
+        <SelfContained>false</SelfContained>
+        <PublishSingleFile>true</PublishSingleFile>
+    </PropertyGroup>
+    
+    <!-- TODO PR to ILRepack.Lib.MSBuild.Task -->
+    <UsingTask TaskName="ILRepack" AssemblyFile="lib/ILRepack.Lib.MSBuild.Task.dll" Condition="'$(Configuration)|$(TargetFramework)' == 'Release|net472'"/>
+
+    <Target Name="ILRepack" AfterTargets="Build" Condition="'$(Configuration)|$(TargetFramework)' == 'Release|net472'">
+        <ItemGroup>
+            <InputAssemblies Include="$(OutputPath)/$(AssemblyName).exe"/>
+            <InputAssemblies Include="$(OutputPath)/*.dll"/>
+        </ItemGroup>
+
+        <ILRepack Parallel="true" Internalize="false" InputAssemblies="@(InputAssemblies)" TargetKind="$(OutputType)" OutputFile="$(OutputPath)\$(AssemblyName).exe"/>
+    </Target>
 </Project>
