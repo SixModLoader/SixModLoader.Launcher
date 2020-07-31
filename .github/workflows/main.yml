@@ -3,9 +3,9 @@ name: CI
 on:
   push:
   pull_request:
-#  release:
-#    types:
-#      - published
+  release:
+    types:
+      - published
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -14,7 +14,7 @@ jobs:
     # The type of runner that the job will run on
     runs-on: windows-latest
     timeout-minutes: 10
-    if: "!contains(github.event.head_commit.message, '[skip ci]') && !startsWith(github.ref, 'refs/tags/')"
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && (!startsWith(github.ref, 'refs/tags/') || github.event_name == 'release')"
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -26,21 +26,57 @@ jobs:
           dotnet publish -c Release -f netcoreapp3.1 -r win-x64
           dotnet publish -c Release -f netcoreapp3.1 -r linux-x64
           dotnet build -c Release -f net472
-          
+
       - name: Upload netcore-win-x64
         uses: actions/upload-artifact@v2
         with:
           name: netcore-win-x64
           path: SixModLoader.Launcher\bin\Release\netcoreapp3.1\win-x64\publish
-          
+
       - name: Upload netcore-linux-x64
         uses: actions/upload-artifact@v2
         with:
           name: netcore-linux-x64
           path: SixModLoader.Launcher\bin\Release\netcoreapp3.1\linux-x64\publish
-          
+
       - name: Upload net472
         uses: actions/upload-artifact@v2
         with:
           name: net472
           path: SixModLoader.Launcher\bin\Release\net472
+
+      - name: Upload netcore-win-x64
+        if: ${{ github.event_name == 'release' }}
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: SixModLoader.Launcher\bin\Release\netcoreapp3.1\win-x64\publish\SixModLoader.Launcher.exe
+          asset_name: SixModLoader.Launcher netcore win-x64
+          asset_content_type: application/octet-stream
+
+      - name: Upload netcore-linux-x64
+        if: ${{ github.event_name == 'release' }}
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: SixModLoader.Launcher\bin\Release\netcoreapp3.1\linux-x64\publish\SixModLoader.Launcher
+          asset_name: SixModLoader.Launcher netcore linux-x64
+          asset_content_type: application/octet-stream
+          
+      - name: Upload net472
+        if: ${{ github.event_name == 'release' }}
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: SixModLoader.Launcher\bin\Release\net472\SixModLoader.Launcher.exe
+          asset_name: SixModLoader.Launcher net472
+          asset_content_type: application/octet-stream      
