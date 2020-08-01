@@ -1,15 +1,21 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
+using Mono.Unix;
 using NuGet.Versioning;
+using Octokit;
 
 namespace SixModLoader.Launcher
 {
     public class AutoUpdate
     {
+        public GitHubClient GitHubClient { get; } = new GitHubClient(new ProductHeaderValue("SixModLoader.Launcher", Program.Version.ToString()));
+
         public async Task UpdateAsync()
         {
             await UpdateLauncherAsync();
@@ -19,13 +25,29 @@ namespace SixModLoader.Launcher
 
         public async Task UpdateLauncherAsync()
         {
+            var assemblyLocation = Process.GetCurrentProcess()!.MainModule!.FileName;
+            if (assemblyLocation == "/usr/bin/mono-sgen")
+            {
+                assemblyLocation = Assembly.GetExecutingAssembly().Location;
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                foreach (var file in Directory.GetFiles(Path.GetDirectoryName(assemblyLocation)).Where(x => x.EndsWith(".delete")))
+                {
+                    Console.WriteLine("Deleting " + file);
+                    File.Delete(file);
+                }
+            }
+
             var version = Program.Version;
-            var releases = JArray.Parse(await Program.HttpClient.GetStringAsync("https://api.github.com/repos/SixModLoader/SixModLoader.Launcher/releases"));
+
+            var releases = await GitHubClient.Repository.Release.GetAll("SixModLoader", "SixModLoader.Launcher");
 
             var newerRelease = releases
-                .Where(x => x.Value<bool>("prerelease") == version?.IsPrerelease)
-                .Select(x => (release: x, version: SemanticVersion.Parse(x.Value<string>("tag_name"))))
-                .FirstOrDefault(x => x.version.CompareTo(version) > 0);
+                .Where(x => version.IsPrerelease || !x.Prerelease)
+                .Select(x => (Release: x, Version: SemanticVersion.Parse(x.TagName)))
+                .FirstOrDefault(x => x.Version.CompareTo(version) > 0);
 
             if (newerRelease == default)
             {
@@ -33,8 +55,55 @@ namespace SixModLoader.Launcher
             }
             else
             {
-                Console.WriteLine("Newest launcher version: " + newerRelease.version);
-                Console.WriteLine("Please update manually (auto update coming soon)");
+                Console.WriteLine("Newest launcher version: " + newerRelease.Version);
+
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    using var stream = await Program.HttpClient.GetStreamAsync(
+                        newerRelease.Release.Assets
+#if NET472
+                            .Single(x => x.Name == "net472.zip")
+#elif NETCOREAPP
+                            .Single(x => x.Name == $"netcore-{(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "win" : "linux")}-x64.zip")
+#endif
+                            .BrowserDownloadUrl
+                    );
+
+                    var zipArchive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+#if NET472
+                    var entry = zipArchive.GetEntry("SixModLoader.Launcher.exe");
+#elif NETCOREAPP
+                    var entry = zipArchive.GetEntry(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "SixModLoader.Launcher.exe" : "SixModLoader.Launcher");
+#endif
+
+                    Console.WriteLine("Updating " + assemblyLocation);
+
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        File.Move(assemblyLocation, assemblyLocation + ".delete");
+                    }
+
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && File.Exists(assemblyLocation))
+                    {
+                        File.Delete(assemblyLocation);
+                    }
+
+                    entry.ExtractToFile(assemblyLocation, true);
+
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    {
+                        new UnixFileInfo(assemblyLocation).FileAccessPermissions
+                            |= FileAccessPermissions.OtherExecute | FileAccessPermissions.GroupExecute | FileAccessPermissions.UserExecute;
+                    }
+
+                    Console.WriteLine("Updated launcher, please restart");
+                    Environment.Exit(0);
+                }
+                else
+                {
+                    Console.WriteLine("Your OS doesn't support auto update, please update manually.");
+                }
             }
         }
 
@@ -50,12 +119,12 @@ namespace SixModLoader.Launcher
                 Console.WriteLine("SixModLoader " + version);
             }
 
-            var releases = JArray.Parse(await Program.HttpClient.GetStringAsync("https://api.github.com/repos/SixModLoader/SixModLoader/releases"));
+            var releases = await GitHubClient.Repository.Release.GetAll("SixModLoader", "SixModLoader");
 
             var newerRelease = releases
-                .Where(x => version == null || x.Value<bool>("prerelease") == version?.IsPrerelease)
-                .Select(x => (release: x, version: SemanticVersion.Parse(x.Value<string>("tag_name"))))
-                .FirstOrDefault(x => x.version.CompareTo(version) > 0);
+                .Where(x => version == null || x.Prerelease == version?.IsPrerelease)
+                .Select(x => (Release: x, Version: SemanticVersion.Parse(x.TagName)))
+                .FirstOrDefault(x => x.Version.CompareTo(version) > 0);
 
             if (newerRelease == default)
             {
@@ -63,12 +132,11 @@ namespace SixModLoader.Launcher
             }
             else
             {
-                Console.WriteLine("Updating SixModLoader to version: " + newerRelease.version);
+                Console.WriteLine("Updating SixModLoader to version: " + newerRelease.Version);
 
-                using var stream = await Program.HttpClient.GetStreamAsync(newerRelease.release
-                    .Value<JArray>("assets")
-                    .Single(x => x.Value<string>("name") == "SixModLoader.zip")
-                    .Value<string>("browser_download_url")
+                using var stream = await Program.HttpClient.GetStreamAsync(
+                    newerRelease.Release.Assets
+                        .Single(x => x.Name == "SixModLoader.zip").BrowserDownloadUrl
                 );
 
                 var zipArchive = new ZipArchive(stream, ZipArchiveMode.Read);
