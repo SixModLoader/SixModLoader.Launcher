@@ -52,12 +52,6 @@ namespace SixModLoader.Launcher
                 .Replace("{args}", string.Join(" ", args))
                 .Split(' ');
 
-            if (!File.Exists(file.First()))
-            {
-                Console.WriteLine($"{file.First()} not found!");
-                return;
-            }
-
             Console.WriteLine($"Starting \"{string.Join(" ", file).Trim()}\"");
 
             doorstop.PreLaunch();
