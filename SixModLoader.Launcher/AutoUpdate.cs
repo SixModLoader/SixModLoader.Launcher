@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Mono.Unix;
 using NuGet.Versioning;
 using Octokit;
+using SixModLoader.Launcher.EasyMetadata;
 
 namespace SixModLoader.Launcher
 {
@@ -18,6 +19,13 @@ namespace SixModLoader.Launcher
 
         public async Task UpdateAsync()
         {
+            var rateLimit = await GitHubClient.Miscellaneous.GetRateLimits();
+            if (rateLimit.Resources.Core.Remaining <= 0)
+            {
+                Console.WriteLine($"GitHub API rate limit reached, skipping auto update. (try again in {rateLimit.Resources.Core.Reset})");
+                return;
+            }
+
             await UpdateLauncherAsync();
             Console.WriteLine();
             await UpdateSixModLoaderAsync();
@@ -26,7 +34,12 @@ namespace SixModLoader.Launcher
         public async Task UpdateLauncherAsync()
         {
             var assemblyLocation = Process.GetCurrentProcess()!.MainModule!.FileName;
-            if (assemblyLocation == "/usr/bin/mono-sgen")
+            if (Path.GetFileName(assemblyLocation) == "dotnet.exe")
+            {
+                Console.WriteLine("Update skipped (dev environment?)");
+                return;
+            }
+            if (Path.GetFileName(assemblyLocation) == "mono-sgen")
             {
                 assemblyLocation = Assembly.GetExecutingAssembly().Location;
             }
