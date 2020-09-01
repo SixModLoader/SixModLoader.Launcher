@@ -61,6 +61,7 @@ namespace SixModLoader.Launcher
 
             var newerRelease = releases
                 .Where(x => !x.Prerelease || prerelease)
+                .Where(x => x.Assets.Any(a => a.Name.EndsWith(".zip")))
                 .Select(x => (Release: x, Version: SemanticVersion.Parse(x.TagName)))
                 .FirstOrDefault(x => x.Version.CompareTo(version) > 0);
 
@@ -139,6 +140,7 @@ namespace SixModLoader.Launcher
 
             var newerRelease = releases
                 .Where(x => !x.Prerelease || prerelease)
+                .Where(x => x.Assets.Any(a => a.Name == "SixModLoader.zip"))
                 .Select(x => (Release: x, Version: SemanticVersion.Parse(x.TagName)))
                 .FirstOrDefault(x => x.Version.CompareTo(version) > 0);
 
