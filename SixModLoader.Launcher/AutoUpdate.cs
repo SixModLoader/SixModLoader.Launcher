@@ -39,6 +39,7 @@ namespace SixModLoader.Launcher
                 Console.WriteLine("Update skipped (dev environment?)");
                 return;
             }
+
             if (Path.GetFileName(assemblyLocation) == "mono-sgen")
             {
                 assemblyLocation = Assembly.GetExecutingAssembly().Location;
@@ -56,9 +57,10 @@ namespace SixModLoader.Launcher
             var version = Program.Version;
 
             var releases = await GitHubClient.Repository.Release.GetAll("SixModLoader", "SixModLoader.Launcher");
+            var prerelease = version != null && version.IsPrerelease;
 
             var newerRelease = releases
-                .Where(x => version.IsPrerelease || !x.Prerelease)
+                .Where(x => !x.Prerelease || prerelease)
                 .Select(x => (Release: x, Version: SemanticVersion.Parse(x.TagName)))
                 .FirstOrDefault(x => x.Version.CompareTo(version) > 0);
 
@@ -133,9 +135,10 @@ namespace SixModLoader.Launcher
             }
 
             var releases = await GitHubClient.Repository.Release.GetAll("SixModLoader", "SixModLoader");
+            var prerelease = version != null && version.IsPrerelease;
 
             var newerRelease = releases
-                .Where(x => version == null || x.Prerelease == version?.IsPrerelease)
+                .Where(x => !x.Prerelease || prerelease)
                 .Select(x => (Release: x, Version: SemanticVersion.Parse(x.TagName)))
                 .FirstOrDefault(x => x.Version.CompareTo(version) > 0);
 
