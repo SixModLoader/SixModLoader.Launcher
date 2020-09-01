@@ -19,7 +19,6 @@
     <ItemGroup>
         <PackageReference Include="Octokit" Version="0.48.0" />
         <PackageReference Include="NuGet.Versioning" Version="5.7.0" />
-        <PackageReference Include="Octokit.Caching.NETStandard" Version="1.1.0" />
         <PackageReference Include="System.CommandLine" Version="2.0.0-beta1.20371.2" />
         <ProjectReference Include="..\SixModLoader.Launcher.EasyMetadata\SixModLoader.Launcher.EasyMetadata.csproj" />
     </ItemGroup>
