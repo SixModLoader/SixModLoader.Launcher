@@ -19,7 +19,7 @@
     <ItemGroup>
         <PackageReference Include="Octokit" Version="0.48.0" />
         <PackageReference Include="NuGet.Versioning" Version="5.7.0" />
-        <PackageReference Include="System.CommandLine" Version="2.0.0-beta1.20371.2" />
+        <PackageReference Include="System.CommandLine" Version="2.0.0-*" />
         <ProjectReference Include="..\SixModLoader.Launcher.EasyMetadata\SixModLoader.Launcher.EasyMetadata.csproj" />
     </ItemGroup>
 
@@ -32,10 +32,6 @@
 
     <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
         <PackageReference Include="Mono.Posix-4.5" Version="4.5.0" />
-        <PackageReference Include="ILMerge.Fody" Version="1.13.0">
-            <PrivateAssets>All</PrivateAssets>
-        </PackageReference>
-        <PackageReference Include="Fody" Version="6.2.4" />
 
         <Reference Include="System.IO.Compression" />
         <Reference Include="System.Net.Http" />
@@ -45,4 +41,18 @@
         <SelfContained>false</SelfContained>
         <PublishSingleFile>true</PublishSingleFile>
     </PropertyGroup>
+
+    <!-- https://github.com/Alexx999/il-repack/tree/master + few linux mono tricks -->
+    <!-- TODO Blocked by https://github.com/gluck/il-repack/pull/236 -->
+    <UsingTask TaskName="ILRepack" AssemblyFile="lib/ILRepack.Lib.MSBuild.Task.dll" Condition="'$(Configuration)|$(TargetFramework)' == 'Release|net472'" />
+
+    <Target Name="ILRepack" AfterTargets="Build" Condition="'$(Configuration)|$(TargetFramework)' == 'Release|net472'">
+        <ItemGroup>
+            <InputAssemblies Include="$(OutputPath)/$(AssemblyName).exe" />
+            <InputAssemblies Include="$(OutputPath)/*.dll" />
+        </ItemGroup>
+
+        <ILRepack Parallel="true" Internalize="false" InputAssemblies="@(InputAssemblies)" TargetKind="$(OutputType)" OutputFile="$(OutputPath)\$(AssemblyName).exe" />
+        <Delete Files="@(ReferenceCopyLocalPaths->'$(OutDir)%(DestinationSubDirectory)%(Filename)%(Extension)')" />
+    </Target>
 </Project>
